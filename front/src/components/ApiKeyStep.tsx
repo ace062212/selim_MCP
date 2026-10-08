@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
+import { useState } from 'react'
 import { api, errorMessage, type IssuedKey, type KeyInfo } from '../lib/api'
-import { MCP_CLIENTS } from '../lib/clients'
+import { CLIENT_GROUPS, MCP_CLIENTS } from '../lib/clients'
 import { MCP_URL } from '../lib/config'
 import { PrimaryButton } from './ui'
 
@@ -279,17 +279,6 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
   const [clientId, setClientId] = useState(readClient)
   const client = MCP_CLIENTS.find((c) => c.id === clientId) ?? MCP_CLIENTS[0]
   const snippet = client.build(MCP_URL, apiKey)
-  const tabsRef = useRef<HTMLDivElement>(null)
-
-  // 폰에서 탭 줄이 넘칠 때 고른 탭이 보이도록 가로 스크롤
-  useEffect(() => {
-    const strip = tabsRef.current
-    const tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]')
-    if (!strip || !tab) return
-    if (tab.offsetLeft < strip.scrollLeft || tab.offsetLeft + tab.offsetWidth > strip.scrollLeft + strip.clientWidth) {
-      strip.scrollTo({ left: tab.offsetLeft - 16, behavior: 'smooth' })
-    }
-  }, [clientId])
 
   const choose = (id: string) => {
     setClientId(id)
@@ -302,32 +291,33 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
 
   return (
     <motion.div className="mt-6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-      <div className="mb-2 text-sm font-medium text-slate-700">연결 설정</div>
-
-      {/* 편집기처럼: 위쪽 탭 줄 + 붙여 넣을 곳 + 코드 */}
-      <div className="overflow-hidden rounded-md bg-navy-deep shadow-inner">
-        <div ref={tabsRef} role="tablist" aria-label="사용하는 프로그램" className="flex overflow-x-auto bg-[#081f3d] [scrollbar-width:none]">
-          {MCP_CLIENTS.map((c) => {
-            const active = c.id === client.id
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                title={c.label}
-                onClick={() => choose(c.id)}
-                className={`relative shrink-0 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                  active ? 'bg-navy-deep text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                }`}
-              >
-                {active && <span className="absolute inset-x-0 top-0 h-0.5 bg-sky" />}
-                {c.short}
-              </button>
-            )
-          })}
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label htmlFor="mcp-client" className="text-sm font-medium text-slate-700">
+          연결 설정
+        </label>
+        {/* 터미널(CLI) / 앱·에디터로 묶은 선택 목록 */}
+        <div className="relative">
+          <select
+            id="mcp-client"
+            value={client.id}
+            onChange={(e) => choose(e.target.value)}
+            className="h-9 cursor-pointer appearance-none rounded-md border border-slate-200 bg-white/80 py-0 pr-9 pl-3 text-sm font-medium text-navy-deep outline-none transition hover:border-slate-300 focus:border-sky focus:ring-4 focus:ring-sky/20"
+          >
+            {CLIENT_GROUPS.map((g) => (
+              <optgroup key={g.id} label={g.label}>
+                {MCP_CLIENTS.filter((c) => c.group === g.id).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
         </div>
+      </div>
 
+      <div className="rounded-md bg-navy-deep shadow-inner">
         <div className="flex items-center justify-between gap-2 pt-2.5 pr-2 pl-4">
           <span className="min-w-0 text-[11px] leading-snug text-sky-200/60">▸ {client.where}</span>
           <CopyButton id="snippet" text={snippet} {...clip} />
