@@ -8,9 +8,12 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "dev:local": "pglite-server --db=.pgdata --port=54329 --max-connections=20 --include-database-url --run \"npm run dev:migrate\"",
+    "dev:migrate": "npm run db:migrate && npm run dev",
     "build": "tsc",
     "start": "node --env-file-if-exists=.env dist/index.js",
     "db:migrate": "tsx --env-file-if-exists=.env src/scripts/migrate.ts",
+    "db:local": "pglite-server --db=.pgdata --port=54329 --max-connections=20",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,6 +25,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.1",

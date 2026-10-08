@@ -33,6 +33,23 @@ cd selim_MCP
 
 ## 2. DB 만들기
 
+### 로컬 개발: 설치 없이 바로 (PGlite)
+
+PostgreSQL을 설치하지 않아도 된다. 개발용 DB(PGlite, WASM으로 돌아가는 PostgreSQL)가 서버 패키지에 들어 있다.
+
+```bash
+cd server
+npm install
+cp .env.example .env   # DATABASE_URL을 postgres://postgres:postgres@127.0.0.1:54329/postgres 로
+npm run dev:local      # DB 시작(:54329) → 마이그레이션 → 서버 실행(:8080)을 한 번에
+```
+
+- 데이터는 `server/.pgdata/`에 저장돼서 껐다 켜도 남는다 (저장소에는 안 올라감). 초기화하려면 서버를 끄고 이 폴더를 지우면 된다.
+- 개발용이라 **운영에서는 쓰지 않는다.** 운영은 아래처럼 진짜 PostgreSQL을 쓴다.
+- DB만 따로 띄우려면 `npm run db:local`.
+
+### PostgreSQL (운영, 또는 로컬에서도 실제 환경과 똑같이 하고 싶을 때)
+
 PostgreSQL 관리자 계정으로 전용 계정과 DB를 만든다. 비밀번호는 직접 정해서 바꿀 것.
 
 ```bash
@@ -87,7 +104,7 @@ npm run db:migrate
 
 ```bash
 # 터미널 1: 서버 (http://localhost:8080)
-cd server && npm run dev
+cd server && npm run dev:local   # PGlite 사용 시 (실제 PostgreSQL이면 npm run dev)
 
 # 터미널 2: 화면 (http://localhost:5173) — /api, /mcp는 8080으로 자동 전달
 cd front && npm install && npm run dev

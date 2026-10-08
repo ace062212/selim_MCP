@@ -27,7 +27,7 @@
 자세한 내용은 [doc/06-setup.md](doc/06-setup.md).
 
 ```bash
-# 1. DB 만들고 server/.env 작성 (server/.env.example 참고)
-cd server && npm install && npm run db:migrate && npm run dev   # :8080
-cd front  && npm install && npm run dev                        # :5173 (사용자), :5173/admin (관리자)
+# server/.env 작성 (server/.env.example 참고)
+cd server && npm install && npm run dev:local   # 개발용 DB + 마이그레이션 + 서버(:8080)
+cd front  && npm install && npm run dev         # :5173 (사용자), :5173/admin (관리자)
 ```
