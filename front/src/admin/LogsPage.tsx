@@ -7,7 +7,7 @@ import { Badge, Button, LoadError, PageHeader, Panel } from './ui'
 
 const PAGE = 25
 
-const STATUS_TEXT: Record<number, string> = { 200: '성공', 401: '인증 실패', 403: '사용 불가', 429: '요청 제한', 500: '서버 오류' }
+const STATUS_TEXT: Record<number, string> = { 200: '성공', 400: '도구 오류', 401: '인증 실패', 403: '사용 불가', 429: '요청 제한', 500: '서버 오류', 504: '시간 초과' }
 
 function StatusBadge({ status }: { status: number }) {
   const tone = status < 300 ? 'green' : status < 500 ? 'amber' : 'rose'

@@ -6,6 +6,8 @@ import { config } from './config.js'
 import { pool } from './db.js'
 import { errorHandler } from './lib/http.js'
 import { SERVER_VERSION, mcpHandler, mcpMethodNotAllowed, toolSpecs } from './mcp/handler.js'
+import { TOOLS } from './mcp/tools/index.js'
+import { validateTools } from './mcp/tools/validate.js'
 import { adminRouter } from './routes/admin.js'
 import { authRouter } from './routes/auth.js'
 import { meRouter } from './routes/me.js'
@@ -45,6 +47,8 @@ app.use('/api', (_req, res) => {
   res.status(404).json({ code: 'NOT_FOUND', message: '없는 API예요.' })
 })
 app.use(errorHandler)
+
+validateTools(TOOLS)
 
 await pool.query('SELECT 1').catch((err) => {
   console.error('DB에 연결할 수 없어요. DATABASE_URL과 마이그레이션(npm run db:migrate)을 확인해 주세요.')

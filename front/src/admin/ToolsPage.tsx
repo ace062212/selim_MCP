@@ -41,7 +41,7 @@ export default function ToolsPage({ notify }: { notify: Notify }) {
 
   return (
     <>
-      <PageHeader title="MCP 도구" desc="사용자에게 공개할 도구를 켜고 끌 수 있어요. 끈 도구는 다음 연결부터 모든 사용자에게서 빠져요." />
+      <PageHeader title="MCP 도구" desc="사용자에게 공개할 도구를 켜고 끌 수 있어요. 새로 배포된 도구는 꺼진 상태로 등록되니 확인 후 켜 주세요." />
 
       <Panel className="mb-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-x-10 gap-y-4">

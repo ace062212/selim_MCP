@@ -18,6 +18,8 @@ export function describeActivity(a: Activity): { text: string; tone: Tone } {
       return { text: `관리자가 ${target}님의 키를 다시 활성화했어요`, tone: 'sky' }
     case 'key.revoke':
       return { text: `관리자가 ${target}님의 키를 폐기했어요`, tone: 'rose' }
+    case 'tool.register':
+      return { text: `새 도구 ${target}가 등록됐어요. MCP 도구 화면에서 켜야 공개돼요`, tone: 'amber' }
     case 'tool.enable':
       return { text: `${target} 도구를 활성화했어요`, tone: 'sky' }
     case 'tool.disable':

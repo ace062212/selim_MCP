@@ -119,7 +119,7 @@ cd front && npm install && npm run dev
 
 ### Claude Code로 연결 확인
 
-사용자 화면에서 키를 발급받고, 화면에 나온 명령어를 그대로 실행한다.
+새 도구는 꺼진 상태로 등록되므로, 처음엔 **관리자 > MCP 도구에서 도구를 켠다.** 그다음 사용자 화면에서 키를 발급받고, 화면에 나온 명령어를 그대로 실행한다.
 
 ```bash
 claude mcp add --transport http selim http://localhost:5173/mcp \
@@ -217,6 +217,7 @@ VITE_MCP_URL=https://다른주소/mcp npm run build
 - [ ] HTTPS 적용 (nginx 등), `TRUST_PROXY=true`
 - [ ] `https://주소/api/health`가 `{"ok":true}` 응답
 - [ ] 관리자 로그인 → 설정에서 허용 도메인, 관리자 목록 확인
+- [ ] 관리자 > MCP 도구에서 공개할 도구 켜기 (새 도구는 꺼진 상태로 등록됨)
 - [ ] 키 발급 → Claude Code 연결 → 사용 로그에 기록되는지 확인
 - [ ] DB 백업 예약
 

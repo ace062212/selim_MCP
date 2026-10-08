@@ -6,6 +6,7 @@ import { getSettings } from '../lib/settings.js'
 import { authenticateKey, touchKey } from '../services/keys.js'
 import { getUserTools } from '../services/tools.js'
 import { allow } from './rateLimit.js'
+import { runTool } from './runTool.js'
 import { TOOLS } from './tools/index.js'
 
 export const SERVER_VERSION = '0.1.0'
@@ -80,16 +81,9 @@ export const mcpHandler: RequestHandler = async (req, res) => {
   const server = new McpServer(SERVER_INFO)
   for (const def of TOOLS.filter((t) => usable.has(t.name))) {
     server.registerTool(def.name, { description: usable.get(def.name), inputSchema: def.inputSchema }, async (args: Record<string, unknown>) => {
-      const started = Date.now()
-      try {
-        const result = await def.handler(args, { userId: auth.userId, email: auth.email })
-        await logCall({ userId: auth.userId, keyId: auth.keyId, tool: def.name, client, status: result.isError ? 500 : 200, latencyMs: Date.now() - started })
-        return result
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        await logCall({ userId: auth.userId, keyId: auth.keyId, tool: def.name, client, status: 500, latencyMs: Date.now() - started, error: message })
-        return { isError: true, content: [{ type: 'text', text: `도구 실행 중 오류가 발생했어요: ${message}` }] }
-      }
+      const run = await runTool(def, args, { userId: auth.userId, email: auth.email })
+      await logCall({ userId: auth.userId, keyId: auth.keyId, tool: def.name, client, status: run.status, latencyMs: run.latencyMs, error: run.error })
+      return run.result
     })
   }
 
