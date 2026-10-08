@@ -12,7 +12,4 @@ INSERT INTO settings (key, value) VALUES
   ('log_retention_days',   '365')            -- 호출 기록 보관 기간
 ON CONFLICT (key) DO NOTHING;
 
--- 최초 관리자 (실제 관리자 이메일로 바꿔서 실행)
-INSERT INTO admins (email, created_by) VALUES
-  ('admin@selim.kr', 'seed')
-ON CONFLICT (email) DO NOTHING;
+-- 최초 관리자는 seed가 아니라 서버 환경변수 INITIAL_ADMIN_EMAILS로 등록 (admins가 비어 있을 때만)

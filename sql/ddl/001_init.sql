@@ -54,7 +54,6 @@ CREATE TABLE api_keys (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id       bigint       NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   key_hash      char(64)     NOT NULL,
-  key_enc       bytea        NOT NULL,
   key_prefix    varchar(20)  NOT NULL,
   key_last4     char(4)      NOT NULL,
   status        varchar(20)  NOT NULL DEFAULT 'active',
@@ -68,10 +67,10 @@ CREATE TABLE api_keys (
   CONSTRAINT ck_api_keys_issued_by CHECK (issued_by IN ('self', 'admin')),
   CONSTRAINT ck_api_keys_revoked CHECK ((status = 'revoked') = (revoked_at IS NOT NULL))
 );
-COMMENT ON TABLE  api_keys            IS 'MCP 접속용 API 키';
+COMMENT ON TABLE  api_keys            IS 'MCP 접속용 API 키. 원문은 저장하지 않음 (발급 시 한 번만 보여줌)';
 COMMENT ON COLUMN api_keys.key_hash   IS 'SHA-256(hex). MCP 요청 인증 시 이 값으로 조회';
-COMMENT ON COLUMN api_keys.key_enc    IS 'AES-256-GCM 암호문. 내 키 조회 화면에서 원문을 다시 보여주기 위해 보관 (암호화 키는 환경변수)';
-COMMENT ON COLUMN api_keys.key_prefix IS '관리자 화면 표시용 앞부분 (예: selim_mcp_ab12)';
+COMMENT ON COLUMN api_keys.key_prefix IS '화면 표시용 앞부분 (예: selim_mcp_ab12)';
+COMMENT ON COLUMN api_keys.key_last4  IS '화면 표시용 끝 4자리';
 COMMENT ON COLUMN api_keys.expires_at IS 'NULL이면 무기한';
 
 CREATE UNIQUE INDEX uq_api_keys_live_per_user ON api_keys (user_id) WHERE status <> 'revoked';
