@@ -119,7 +119,7 @@ cd front && npm install && npm run dev
 
 ### Claude Code로 연결 확인
 
-새 도구는 꺼진 상태로 등록되므로, 처음엔 **관리자 > MCP 도구에서 도구를 켠다.** 그다음 사용자 화면에서 키를 발급받고, 화면에 나온 명령어를 그대로 실행한다.
+새 도구는 꺼진 상태로 등록되므로, 처음엔 **관리자 > MCP 도구에서 도구를 켠다.** 그다음 사용자 화면에서 키를 발급받고, 연결 설정에서 쓰는 프로그램(Claude Code, Claude Desktop, Cursor, Codex CLI, Gemini CLI, VS Code)을 골라 나온 설정을 그대로 붙여 넣는다. 형식은 `front/src/lib/clients.ts`에 모여 있다. Claude Code 예:
 
 ```bash
 claude mcp add --transport http selim http://localhost:5173/mcp \

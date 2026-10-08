@@ -2,8 +2,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { api, errorMessage, type IssuedKey, type KeyInfo } from '../lib/api'
+import { MCP_CLIENTS } from '../lib/clients'
 import { MCP_URL } from '../lib/config'
-import { PrimaryButton, Segmented } from './ui'
+import { PrimaryButton } from './ui'
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null)
@@ -39,13 +40,21 @@ function CopyButton({ id, text, copied, copy }: { id: string; text: string } & R
   )
 }
 
-const TABS = ['Claude Code', 'Claude Desktop / Cursor'] as const
-const TAB_OPTIONS = TABS.map((t) => ({ value: t, label: t }))
+// 마지막으로 고른 클라이언트를 기억 (다음에 들어와도 같은 탭)
+const CLIENT_STORAGE = 'selim-mcp-client'
+const readClient = () => {
+  try {
+    const id = localStorage.getItem(CLIENT_STORAGE)
+    return MCP_CLIENTS.some((c) => c.id === id) ? id! : MCP_CLIENTS[0].id
+  } catch {
+    return MCP_CLIENTS[0].id
+  }
+}
 const KEY_PLACEHOLDER = '<API_KEY>'
 
 const STEPS = [
   { title: 'API 키 보관', desc: '키는 외부에 공유하지 마세요. 원문은 발급 직후에만 볼 수 있고, 잊어버리면 재발급하면 돼요.' },
-  { title: 'MCP 클라이언트에 등록', desc: '사용하는 도구에 맞는 설정을 복사해서 붙여 넣으세요.' },
+  { title: 'MCP 클라이언트에 등록', desc: '사용하는 프로그램을 고르고, 나온 설정을 복사해서 안내된 곳에 붙여 넣으세요.' },
   { title: '바로 사용', desc: "AI 도구에서 사내 시스템을 바로 불러와 쓸 수 있어요. 쓸 도구는 '도구 설정'에서 고를 수 있어요." },
 ]
 
@@ -267,25 +276,61 @@ function SavedView({
 }
 
 function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; clip: ReturnType<typeof useCopy> }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Claude Code')
-  const snippets: Record<(typeof TABS)[number], string> = {
-    'Claude Code': `claude mcp add --transport http selim ${MCP_URL} \\\n  --header "Authorization: Bearer ${apiKey}"`,
-    'Claude Desktop / Cursor': JSON.stringify({ mcpServers: { selim: { url: MCP_URL, headers: { Authorization: `Bearer ${apiKey}` } } } }, null, 2),
+  const [clientId, setClientId] = useState(readClient)
+  const client = MCP_CLIENTS.find((c) => c.id === clientId) ?? MCP_CLIENTS[0]
+  const snippet = client.build(MCP_URL, apiKey)
+
+  const choose = (id: string) => {
+    setClientId(id)
+    try {
+      localStorage.setItem(CLIENT_STORAGE, id)
+    } catch {
+      // 저장 못 해도 이번 화면에서는 동작
+    }
   }
 
   return (
     <motion.div className="mt-6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-700">연결 설정</span>
-        <Segmented size="sm" options={TAB_OPTIONS} value={tab} onChange={setTab} />
+      <div className="mb-2 text-sm font-medium text-slate-700">연결 설정</div>
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-md bg-slate-100 p-1" role="tablist" aria-label="사용하는 프로그램">
+        {MCP_CLIENTS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="tab"
+            aria-selected={c.id === client.id}
+            onClick={() => choose(c.id)}
+            className={`rounded px-1.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+              c.id === client.id ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
+      <p className="mb-1.5 text-xs text-slate-500">{client.where}</p>
       <div className="relative rounded-md bg-navy-deep p-4 pr-12">
-        <pre className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-sky-100">{snippets[tab].replaceAll(apiKey, display)}</pre>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.pre
+            key={client.id}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-sky-100"
+          >
+            {snippet.replaceAll(apiKey, display)}
+          </motion.pre>
+        </AnimatePresence>
         <div className="absolute top-2 right-2">
-          <CopyButton id="snippet" text={snippets[tab]} {...clip} />
+          <CopyButton id="snippet" text={snippet} {...clip} />
         </div>
       </div>
+      {client.note && <p className="mt-2 text-xs text-slate-500">{client.note}</p>}
       {apiKey === KEY_PLACEHOLDER && <p className="mt-2 text-xs text-slate-400">{KEY_PLACEHOLDER} 자리에 발급받은 키를 넣어 주세요.</p>}
+      {client.where.includes('추가') && (
+        <p className="mt-2 text-xs text-slate-400">파일에 이미 다른 서버 설정이 있으면 그 안에 selim 항목만 추가하세요.</p>
+      )}
     </motion.div>
   )
 }
