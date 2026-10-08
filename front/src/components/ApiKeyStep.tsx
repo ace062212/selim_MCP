@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ChevronDown, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { api, errorMessage, type IssuedKey, type KeyInfo } from '../lib/api'
-import { CLIENT_GROUPS, MCP_CLIENTS } from '../lib/clients'
+import { MCP_CLIENTS } from '../lib/clients'
 import { MCP_URL } from '../lib/config'
+import ClientSelect from './ClientSelect'
 import { PrimaryButton } from './ui'
 
 function useCopy() {
@@ -292,29 +293,8 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
   return (
     <motion.div className="mt-6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <label htmlFor="mcp-client" className="text-sm font-medium text-slate-700">
-          연결 설정
-        </label>
-        {/* 터미널(CLI) / 앱·에디터로 묶은 선택 목록 */}
-        <div className="relative">
-          <select
-            id="mcp-client"
-            value={client.id}
-            onChange={(e) => choose(e.target.value)}
-            className="h-9 cursor-pointer appearance-none rounded-md border border-slate-200 bg-white/80 py-0 pr-9 pl-3 text-sm font-medium text-navy-deep outline-none transition hover:border-slate-300 focus:border-sky focus:ring-4 focus:ring-sky/20"
-          >
-            {CLIENT_GROUPS.map((g) => (
-              <optgroup key={g.id} label={g.label}>
-                {MCP_CLIENTS.filter((c) => c.group === g.id).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        </div>
+        <span className="text-sm font-medium text-slate-700">연결 설정</span>
+        <ClientSelect value={client.id} onChange={choose} />
       </div>
 
       <div className="rounded-md bg-navy-deep shadow-inner">

@@ -12,6 +12,8 @@ export type McpClient = {
   id: string
   label: string
   group: ClientGroup
+  // 목록 오른쪽에 작게 보이는 설정 방식
+  hint: string
   // 설정을 어디에 넣는지 안내
   where: string
   build: (url: string, key: string) => string
@@ -25,6 +27,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'claude-code',
     label: 'Claude Code',
+    hint: '명령어',
     group: 'cli',
     where: '터미널에서 실행',
     build: (url, key) => `claude mcp add --transport http ${SERVER_NAME} ${url} \\\n  --header "Authorization: Bearer ${key}"`,
@@ -32,6 +35,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'claude-desktop',
     label: 'Claude Desktop',
+    hint: '설정 파일',
     group: 'app',
     where: '설정 > 개발자 > 설정 편집 → claude_desktop_config.json에 추가',
     // Claude Desktop 설정 파일은 실행 명령 방식만 지원해서 mcp-remote로 연결
@@ -50,6 +54,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'cursor',
     label: 'Cursor',
+    hint: 'mcp.json',
     group: 'app',
     where: '~/.cursor/mcp.json에 추가',
     build: (url, key) => json({ mcpServers: { [SERVER_NAME]: { url, headers: { Authorization: `Bearer ${key}` } } } }),
@@ -57,6 +62,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'codex',
     label: 'Codex CLI',
+    hint: 'config.toml',
     group: 'cli',
     where: '~/.codex/config.toml에 추가',
     build: (url, key) => `[mcp_servers.${SERVER_NAME}]\nurl = "${url}"\nhttp_headers = { "Authorization" = "Bearer ${key}" }`,
@@ -64,6 +70,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'gemini',
     label: 'Gemini CLI',
+    hint: '명령어',
     group: 'cli',
     where: '터미널에서 실행',
     build: (url, key) => `gemini mcp add --transport http \\\n  --header "Authorization: Bearer ${key}" \\\n  ${SERVER_NAME} ${url}`,
@@ -71,6 +78,7 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: 'vscode',
     label: 'VS Code',
+    hint: 'mcp.json',
     group: 'app',
     where: '.vscode/mcp.json에 추가 (GitHub Copilot 에이전트 모드)',
     build: (url, key) => json({ servers: { [SERVER_NAME]: { type: 'http', url, headers: { Authorization: `Bearer ${key}` } } } }),
