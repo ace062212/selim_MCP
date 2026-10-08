@@ -41,14 +41,20 @@ Cursor                   └─────────────────�
 
 인증 메일은 HTML 템플릿(회사 로고, 브랜드 색)으로 보낼 수 있음.
 
-## 환경변수 (예정)
+## 환경변수
+
+`server/.env` (예시: `server/.env.example`). 자세한 설정은 [06-setup.md](06-setup.md).
 
 | 이름 | 용도 |
 |---|---|
 | `DATABASE_URL` | PostgreSQL 접속 정보 |
-| `API_KEY_ENC_KEY` | API 키 원문 암호화용 AES-256 키 (`api_keys.key_enc`) |
-| `OTP_PEPPER` | 인증번호 해시용 비밀값 |
-| `SESSION_SECRET` | 세션 토큰(JWT) 서명 키 |
-| `SMTP_*` 또는 `AWS_SES_*` | 메일 발송 |
+| `SESSION_SECRET` | 세션 토큰(JWT) 서명 키 (32자 이상) |
+| `OTP_PEPPER` | 인증번호 해시용 비밀값 (32자 이상) |
+| `INITIAL_ADMIN_EMAILS` | 최초 관리자 (admins가 비어 있을 때만 등록) |
+| `OTP_DEV_ACCEPT_ANY` | 개발용: 아무 6자리 통과. 운영에서 true면 서버가 시작 거부 |
+| `FRONT_DIST` | 프론트 빌드 결과물 경로 (서버가 화면도 같이 내려줄 때) |
+| `TRUST_PROXY` | nginx 등 프록시 뒤에 둘 때 true |
+| `PORT`, `NODE_ENV` | 포트(기본 8080), 운영이면 `production` |
+| `SMTP_*` 등 | 메일 발송 (연동할 때 추가) |
 
 비밀값은 저장소에 올리지 않음 (`.env`는 `.gitignore`에 포함).
