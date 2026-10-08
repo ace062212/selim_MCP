@@ -1,17 +1,31 @@
 import { motion, useAnimationControls } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { api, errorMessage } from '../lib/api'
+import type { Mode } from './EmailStep'
 import { PrimaryButton, StepHeader } from './ui'
 
 const LENGTH = 6
-const RESEND_SECONDS = 180
+// 서버에서 같은 이메일은 30초에 한 번만 다시 보낼 수 있음
+const RESEND_AFTER = 30
 
-type Props = { email: string; onBack: () => void; onVerified: () => void }
+type Props = {
+  email: string
+  mode: Mode
+  ttlMinutes: number
+  devMode: boolean
+  onBack: () => void
+  // 인증 통과 후 다음 단계 준비 (실패하면 이 화면에 오류 표시)
+  onVerified: () => Promise<void>
+}
 
-export default function OtpStep({ email, onBack, onVerified }: Props) {
+export default function OtpStep({ email, mode, ttlMinutes, devMode, onBack, onVerified }: Props) {
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
-  const [remaining, setRemaining] = useState(RESEND_SECONDS)
+  const [remaining, setRemaining] = useState(ttlMinutes * 60)
+  // 발송 직후의 남은 시간. 여기서 30초가 줄면 재전송 가능
+  const [sentWith, setSentWith] = useState(ttlMinutes * 60)
+  const [resending, setResending] = useState(false)
   const [error, setError] = useState('')
   const inputs = useRef<(HTMLInputElement | null)[]>([])
   const shake = useAnimationControls()
@@ -28,17 +42,43 @@ export default function OtpStep({ email, onBack, onVerified }: Props) {
 
   const code = digits.join('')
 
-  const verify = (value: string) => {
-    if (value.length !== LENGTH) {
-      setError('인증번호 6자리를 모두 입력해 주세요.')
-      shake.start({ x: [0, -10, 10, -6, 6, 0], transition: { duration: 0.4 } })
-      return
-    }
+  const fail = (message: string) => {
+    setError(message)
+    shake.start({ x: [0, -10, 10, -6, 6, 0], transition: { duration: 0.4 } })
+  }
+
+  const verify = async (value: string) => {
+    if (loading) return
+    if (value.length !== LENGTH) return fail('인증번호 6자리를 모두 입력해 주세요.')
     setError('')
     setLoading(true)
-    // TODO: 백엔드 연동 시 인증번호 검증 API 호출 (지금은 아무 숫자나 통과)
-    setTimeout(onVerified, 1000)
+    try {
+      await api.verifyOtp(email, mode, value)
+      await onVerified()
+    } catch (err) {
+      setLoading(false)
+      setDigits(Array(LENGTH).fill(''))
+      fail(errorMessage(err))
+      setTimeout(() => inputs.current[0]?.focus())
+    }
   }
+
+  const resend = async () => {
+    setResending(true)
+    try {
+      const r = await api.requestOtp(email, mode)
+      setRemaining(r.ttlMinutes * 60)
+      setSentWith(r.ttlMinutes * 60)
+      setDigits(Array(LENGTH).fill(''))
+      setError('')
+      inputs.current[0]?.focus()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setResending(false)
+    }
+  }
+  const canResend = sentWith - remaining >= RESEND_AFTER
 
   const setAt = (i: number, v: string) => {
     const next = [...digits]
@@ -127,27 +167,27 @@ export default function OtpStep({ email, onBack, onVerified }: Props) {
         ))}
       </motion.div>
 
-      <div className="mt-3 flex h-5 items-center justify-between text-sm">
+      <div className="mt-3 flex min-h-5 items-start justify-between gap-3 text-sm">
         <span className="text-rose-500">{error}</span>
-        {remaining > 0 ? (
-          <span className="tabular-nums text-slate-500">
-            {mm}:{ss}
+        <span className="flex shrink-0 items-center gap-3">
+          <span className={`tabular-nums ${remaining > 0 ? 'text-slate-500' : 'text-rose-500'}`}>
+            {remaining > 0 ? `${mm}:${ss}` : '만료됨'}
           </span>
-        ) : (
           <button
             type="button"
-            onClick={() => setRemaining(RESEND_SECONDS)}
-            className="font-medium text-navy underline-offset-2 hover:underline"
+            onClick={resend}
+            disabled={!canResend || resending || loading}
+            className="font-medium text-navy underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline"
           >
-            인증번호 재전송
+            재전송
           </button>
-        )}
+        </span>
       </div>
 
       <PrimaryButton type="button" loading={loading} onClick={() => verify(code)} className="mt-4">
         인증하기
       </PrimaryButton>
-      <p className="mt-4 text-center text-xs text-slate-400">데모 버전: 아무 숫자 6자리나 입력하면 통과돼요.</p>
+      {devMode && <p className="mt-4 text-center text-xs text-slate-400">개발 모드: 아무 숫자 6자리나 입력하면 통과돼요.</p>}
     </div>
   )
 }

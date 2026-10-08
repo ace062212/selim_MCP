@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react'
+import { api, errorMessage } from '../lib/api'
 import { PrimaryButton, Segmented, StepHeader } from './ui'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export type Mode = 'issue' | 'lookup'
+export type Mode = 'issue' | 'lookup' | 'settings'
 
 const MODES: { value: Mode; label: string }[] = [
-  { value: 'issue', label: 'API 키 발급' },
+  { value: 'issue', label: '키 발급' },
   { value: 'lookup', label: '내 키 조회' },
+  { value: 'settings', label: '도구 설정' },
 ]
 
 const COPY: Record<Mode, { title: string; desc: string; button: string }> = {
@@ -21,13 +23,18 @@ const COPY: Record<Mode, { title: string; desc: string; button: string }> = {
     desc: '발급받은 API 키를 다시 확인할 수 있어요.',
     button: '인증번호 받고 조회하기',
   },
+  settings: {
+    title: '내 도구 설정',
+    desc: '사용할 MCP 도구를 직접 켜고 끌 수 있어요.',
+    button: '인증번호 받고 설정하기',
+  },
 }
 
 type Props = {
   mode: Mode
   onModeChange: (mode: Mode) => void
   defaultEmail: string
-  onSubmit: (email: string) => void
+  onSubmit: (email: string, otp: { ttlMinutes: number; devMode: boolean }) => void
 }
 
 export default function EmailStep({ mode, onModeChange, defaultEmail, onSubmit }: Props) {
@@ -35,16 +42,21 @@ export default function EmailStep({ mode, onModeChange, defaultEmail, onSubmit }
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!EMAIL_RE.test(email.trim())) {
+    const value = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(value)) {
       setError('올바른 이메일 주소를 입력해 주세요.')
       return
     }
     setError('')
     setLoading(true)
-    // TODO: 백엔드 연동 시 인증번호 발송 API 호출
-    setTimeout(() => onSubmit(email.trim()), 900)
+    try {
+      onSubmit(value, await api.requestOtp(value, mode))
+    } catch (err) {
+      setError(errorMessage(err))
+      setLoading(false)
+    }
   }
 
   return (
@@ -87,7 +99,7 @@ export default function EmailStep({ mode, onModeChange, defaultEmail, onSubmit }
           error ? 'border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-sky focus:ring-sky/20'
         }`}
       />
-      <p className="mt-2 h-5 text-sm text-rose-500">{error}</p>
+      <p className="mt-2 min-h-5 text-sm text-rose-500">{error}</p>
       <PrimaryButton type="submit" loading={loading} className="mt-2">
         {COPY[mode].button}
       </PrimaryButton>

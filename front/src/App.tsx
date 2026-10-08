@@ -6,11 +6,11 @@ import Background from './components/Background'
 import EmailStep, { type Mode } from './components/EmailStep'
 import Intro, { LOGO_AT } from './components/Intro'
 import OtpStep from './components/OtpStep'
-import { findKey, issueKey, type KeyRecord } from './lib/keyStore'
+import ToolsStep from './components/ToolsStep'
+import { api, type IssuedKey, type KeyInfo } from './lib/api'
 
 type Step = 'email' | 'otp' | 'done'
 const STEP_ORDER: Step[] = ['email', 'otp', 'done']
-const STEP_LABELS = ['이메일', '인증', 'API 키']
 const LOGO_FLIGHT_MS = 1000
 
 const slide = {
@@ -29,7 +29,8 @@ export default function App() {
   const [dir, setDir] = useState(1)
   const [email, setEmail] = useState('')
   const [mode, setMode] = useState<Mode>('issue')
-  const [record, setRecord] = useState<KeyRecord | null>(null)
+  const [otp, setOtp] = useState({ ttlMinutes: 3, devMode: false })
+  const [keyInfo, setKeyInfo] = useState<KeyInfo | IssuedKey | null>(null)
 
   const finishIntro = useCallback(() => {
     setIntroDone(true)
@@ -41,9 +42,20 @@ export default function App() {
   }
   const stepIndex = STEP_ORDER.indexOf(step)
 
-  const handleVerified = () => {
-    setRecord(mode === 'issue' ? issueKey(email) : findKey(email))
+  const stepLabels = ['이메일', '인증', mode === 'settings' ? '도구 설정' : 'API 키']
+
+  // 인증 통과 후: 발급이면 바로 발급, 조회면 내 키 정보, 도구 설정은 화면에서 직접 불러옴
+  const handleVerified = async () => {
+    if (mode === 'issue') setKeyInfo(await api.issueMyKey())
+    else if (mode === 'lookup') setKeyInfo(await api.myKey())
     go('done')
+  }
+
+  const reset = () => {
+    void api.logout('user').catch(() => {})
+    setEmail('')
+    setKeyInfo(null)
+    go('email')
   }
 
   return (
@@ -90,7 +102,7 @@ export default function App() {
             >
               {/* 진행 단계 */}
               <div className="mb-5 flex items-center justify-center gap-2">
-                {STEP_LABELS.map((label, i) => (
+                {stepLabels.map((label, i) => (
                   <div key={label} className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5">
                       <motion.span
@@ -106,7 +118,7 @@ export default function App() {
                         {label}
                       </span>
                     </div>
-                    {i < STEP_LABELS.length - 1 && (
+                    {i < stepLabels.length - 1 && (
                       <div className="relative h-px w-8 bg-slate-200">
                         <motion.div
                           className="absolute inset-y-0 left-0 bg-navy"
@@ -144,28 +156,26 @@ export default function App() {
                         mode={mode}
                         onModeChange={setMode}
                         defaultEmail={email}
-                        onSubmit={(e) => {
+                        onSubmit={(e, info) => {
                           setEmail(e)
+                          setOtp(info)
                           go('otp')
                         }}
                       />
                     )}
-                    {step === 'otp' && <OtpStep email={email} onBack={() => go('email')} onVerified={handleVerified} />}
-                    {step === 'done' && (
-                      <ApiKeyStep
+                    {step === 'otp' && (
+                      <OtpStep
                         email={email}
                         mode={mode}
-                        record={record}
-                        onIssue={() => {
-                          setMode('issue')
-                          setRecord(issueKey(email))
-                        }}
-                        onReset={() => {
-                          setEmail('')
-                          setRecord(null)
-                          go('email')
-                        }}
+                        ttlMinutes={otp.ttlMinutes}
+                        devMode={otp.devMode}
+                        onBack={() => go('email')}
+                        onVerified={handleVerified}
                       />
+                    )}
+                    {step === 'done' && mode === 'settings' && <ToolsStep email={email} onReset={reset} />}
+                    {step === 'done' && mode !== 'settings' && (
+                      <ApiKeyStep email={email} keyInfo={keyInfo} onKeyChange={setKeyInfo} onReset={reset} />
                     )}
                   </motion.div>
                 </AnimatePresence>

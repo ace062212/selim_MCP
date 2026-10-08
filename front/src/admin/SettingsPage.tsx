@@ -1,15 +1,36 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Segmented } from '../components/ui'
+import { Segmented, Toggle } from '../components/ui'
+import { api, errorMessage, type Settings } from '../lib/api'
 import { EMAIL_RE, inputClass } from './format'
-import type { Settings } from './mockData'
-import { Button, PageHeader, Panel, PanelTitle, Toggle } from './ui'
+import type { Notify } from './notify'
+import { Button, LoadError, PageHeader, Panel, PanelTitle } from './ui'
+import { useLoad } from './useLoad'
 
-type Props = { settings: Settings; onSave: (s: Settings) => void }
+export default function SettingsPage({ notify }: { notify: Notify }) {
+  const { data, error, setData } = useLoad(api.admin.settings)
+  if (error) return <LoadError message={error} />
+  if (!data) return <PageHeader title="설정" desc="불러오는 중…" />
+  return (
+    <SettingsForm
+      settings={data}
+      onSave={async (s) => {
+        try {
+          await api.admin.saveSettings(s)
+          setData(s)
+          notify('설정을 저장했어요')
+        } catch (err) {
+          notify(errorMessage(err), 'error')
+        }
+      }}
+    />
+  )
+}
 
-export default function SettingsPage({ settings, onSave }: Props) {
+function SettingsForm({ settings, onSave }: { settings: Settings; onSave: (s: Settings) => Promise<void> }) {
   const [draft, setDraft] = useState(settings)
+  const [saving, setSaving] = useState(false)
   const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -107,8 +128,13 @@ export default function SettingsPage({ settings, onSave }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => onSave(draft)}
-                className="h-9 rounded-md bg-white px-4 font-semibold text-navy-deep transition hover:bg-sky-soft active:scale-[0.98]"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true)
+                  await onSave(draft)
+                  setSaving(false)
+                }}
+                className="h-9 rounded-md bg-white px-4 font-semibold text-navy-deep transition hover:bg-sky-soft active:scale-[0.98] disabled:opacity-60"
               >
                 저장
               </button>

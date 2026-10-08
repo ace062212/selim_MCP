@@ -2,37 +2,49 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Copy, Pause, Play, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Segmented } from '../components/ui'
-import { EMAIL_RE, fmtDate, fmtNum, inputClass, maskKey, timeAgo } from './format'
-import type { Member } from './mockData'
-import { Badge, Button, ConfirmModal, IconButton, Modal, PageHeader, Panel } from './ui'
+import { api, errorMessage, type AdminKey, type IssuedKey } from '../lib/api'
+import { EMAIL_RE, fmtDate, fmtNum, inputClass, timeAgo } from './format'
+import type { Notify } from './notify'
+import { Badge, Button, ConfirmModal, IconButton, LoadError, Modal, PageHeader, Panel } from './ui'
 import { useCopy } from './useCopy'
+import { useLoad } from './useLoad'
 
 type Filter = 'all' | 'active' | 'suspended'
-type Confirm = { type: 'revoke' | 'reissue'; member: Member; open: boolean } | null
+type Confirm = { type: 'revoke' | 'reissue'; key: AdminKey; open: boolean } | null
 
-type Props = {
-  members: Member[]
-  onToggle: (email: string) => void
-  onReissue: (email: string) => void
-  onRevoke: (email: string) => void
-  onIssue: (email: string) => string
-}
+const who = (k: AdminKey) => k.name || k.email
 
-export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIssue }: Props) {
+export default function KeysPage({ notify }: { notify: Notify }) {
+  const { data: keys, error, reload } = useLoad(api.admin.keys)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [issueOpen, setIssueOpen] = useState(false)
   // 열 때마다 새 입력 상태로 시작하도록 key를 바꿈
   const [issueRun, setIssueRun] = useState(0)
+  // 재발급 결과(원문)는 한 번만 보여줌
+  const [reissued, setReissued] = useState<{ key: IssuedKey; owner: string } | null>(null)
   const closeConfirm = () => setConfirm((c) => c && { ...c, open: false })
 
-  const count = (f: Filter) => (f === 'all' ? members.length : members.filter((m) => m.status === f).length)
+  if (error) return <LoadError message={error} />
+  const list = keys ?? []
+
+  const run = async (action: () => Promise<unknown>, done: string, tone: 'ok' | 'error' = 'ok') => {
+    try {
+      await action()
+      notify(done, tone)
+    } catch (err) {
+      notify(errorMessage(err), 'error')
+    }
+    reload()
+  }
+
+  const count = (f: Filter) => (f === 'all' ? list.length : list.filter((k) => k.status === f).length)
   const q = query.trim().toLowerCase()
-  const rows = members.filter(
-    (m) =>
-      (filter === 'all' || m.status === filter) &&
-      (!q || m.email.includes(q) || m.name.includes(q) || m.dept.toLowerCase().includes(q)),
+  const rows = list.filter(
+    (k) =>
+      (filter === 'all' || k.status === filter) &&
+      (!q || k.email.includes(q) || (k.name ?? '').includes(q) || (k.dept ?? '').toLowerCase().includes(q)),
   )
 
   return (
@@ -85,9 +97,9 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
             </thead>
             <tbody>
               <AnimatePresence initial={false}>
-                {rows.map((m) => (
+                {rows.map((k) => (
                   <motion.tr
-                    key={m.email}
+                    key={k.id}
                     layout="position"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -97,23 +109,26 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-soft text-xs font-semibold text-navy">
-                          {m.name ? m.name.slice(-2) : m.email[0].toUpperCase()}
+                          {k.name ? k.name.slice(-2) : k.email[0].toUpperCase()}
                         </span>
                         <div className="min-w-0">
                           <p className="font-medium text-slate-800">
-                            {m.name || <span className="text-slate-400">이름 미등록</span>}
-                            {m.dept && <span className="ml-2 text-xs font-normal text-slate-400">{m.dept}</span>}
+                            {k.name || <span className="text-slate-400">이름 미등록</span>}
+                            {k.dept && <span className="ml-2 text-xs font-normal text-slate-400">{k.dept}</span>}
                           </p>
-                          <p className="truncate text-xs text-slate-500">{m.email}</p>
+                          <p className="truncate text-xs text-slate-500">{k.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 font-mono text-xs text-slate-600">{maskKey(m.key)}</td>
-                    <td className="px-3 py-3.5 text-slate-600 tabular-nums">{fmtDate(m.issuedAt)}</td>
-                    <td className={`px-3 py-3.5 ${m.lastUsedAt ? 'text-slate-600' : 'text-slate-400'}`}>{timeAgo(m.lastUsedAt)}</td>
-                    <td className="px-3 py-3.5 text-right text-slate-700 tabular-nums">{fmtNum(m.requests)}</td>
+                    <td className="px-3 py-3.5 font-mono text-xs text-slate-600">{k.masked}</td>
+                    <td className="px-3 py-3.5 text-slate-600 tabular-nums">
+                      {fmtDate(k.issuedAt)}
+                      {k.issuedBy === 'admin' && <span className="ml-1.5 text-xs text-slate-400">관리자</span>}
+                    </td>
+                    <td className={`px-3 py-3.5 ${k.lastUsedAt ? 'text-slate-600' : 'text-slate-400'}`}>{timeAgo(k.lastUsedAt)}</td>
+                    <td className="px-3 py-3.5 text-right text-slate-700 tabular-nums">{fmtNum(k.requests)}</td>
                     <td className="px-3 py-3.5">
-                      {m.status === 'active' ? (
+                      {k.status === 'active' ? (
                         <Badge tone="green" dot>
                           활성
                         </Badge>
@@ -125,13 +140,20 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-0.5">
-                        <IconButton label={m.status === 'active' ? '정지' : '다시 활성화'} onClick={() => onToggle(m.email)}>
-                          {m.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        <IconButton
+                          label={k.status === 'active' ? '정지' : '다시 활성화'}
+                          onClick={() =>
+                            k.status === 'active'
+                              ? run(() => api.admin.setKeyStatus(k.id, 'suspended'), `${who(k)}님의 키를 정지했어요`)
+                              : run(() => api.admin.setKeyStatus(k.id, 'active'), `${who(k)}님의 키를 다시 활성화했어요`)
+                          }
+                        >
+                          {k.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </IconButton>
-                        <IconButton label="재발급" onClick={() => setConfirm({ type: 'reissue', member: m, open: true })}>
+                        <IconButton label="재발급" onClick={() => setConfirm({ type: 'reissue', key: k, open: true })}>
                           <RefreshCw className="h-4 w-4" />
                         </IconButton>
-                        <IconButton label="폐기" tone="danger" onClick={() => setConfirm({ type: 'revoke', member: m, open: true })}>
+                        <IconButton label="폐기" tone="danger" onClick={() => setConfirm({ type: 'revoke', key: k, open: true })}>
                           <Trash2 className="h-4 w-4" />
                         </IconButton>
                       </div>
@@ -141,7 +163,12 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
               </AnimatePresence>
             </tbody>
           </table>
-          {rows.length === 0 && <p className="border-t border-slate-100 py-16 text-center text-sm text-slate-400">조건에 맞는 키가 없어요.</p>}
+          {keys === null && <p className="border-t border-slate-100 py-16 text-center text-sm text-slate-400">불러오는 중…</p>}
+          {keys !== null && rows.length === 0 && (
+            <p className="border-t border-slate-100 py-16 text-center text-sm text-slate-400">
+              {list.length ? '조건에 맞는 키가 없어요.' : '아직 발급된 키가 없어요.'}
+            </p>
+          )}
         </div>
       </Panel>
 
@@ -150,12 +177,16 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
         title="키를 재발급할까요?"
         desc={
           <>
-            <b className="text-slate-700">{confirm?.member.name || confirm?.member.email}</b>님의 기존 키는 즉시 사용할 수 없게 돼요.
-            사용자는 '내 키 조회'에서 새 키를 확인할 수 있어요.
+            <b className="text-slate-700">{confirm && who(confirm.key)}</b>님의 기존 키는 즉시 사용할 수 없게 돼요. 새 키는 이번에 한 번만 보여드리니
+            사용자에게 안전하게 전달해 주세요.
           </>
         }
         confirmLabel="재발급"
-        onConfirm={() => confirm && onReissue(confirm.member.email)}
+        onConfirm={() => {
+          if (!confirm) return
+          const k = confirm.key
+          void run(async () => setReissued({ key: await api.admin.reissueKey(k.id), owner: who(k) }), `${who(k)}님의 키를 재발급했어요`)
+        }}
         onClose={closeConfirm}
       />
       <ConfirmModal
@@ -164,45 +195,91 @@ export default function KeysPage({ members, onToggle, onReissue, onRevoke, onIss
         title="키를 폐기할까요?"
         desc={
           <>
-            <b className="text-slate-700">{confirm?.member.name || confirm?.member.email}</b>님의 키가 삭제되고 MCP에 접속할 수 없게 돼요.
-            이 작업은 되돌릴 수 없어요.
+            <b className="text-slate-700">{confirm && who(confirm.key)}</b>님의 키가 폐기되고 MCP에 접속할 수 없게 돼요. 이 작업은 되돌릴 수 없어요.
           </>
         }
         confirmLabel="폐기"
-        onConfirm={() => confirm && onRevoke(confirm.member.email)}
+        onConfirm={() => {
+          if (!confirm) return
+          const k = confirm.key
+          void run(() => api.admin.revokeKey(k.id), `${who(k)}님의 키를 폐기했어요`)
+        }}
         onClose={closeConfirm}
       />
-      <IssueModal key={issueRun} open={issueOpen} onIssue={onIssue} onClose={() => setIssueOpen(false)} />
+      <IssueModal
+        key={issueRun}
+        open={issueOpen}
+        onIssue={async (email) => {
+          const issued = await api.admin.issueKey(email)
+          notify(`${email}님에게 키를 발급했어요`)
+          reload()
+          return issued
+        }}
+        onClose={() => setIssueOpen(false)}
+      />
+      <KeyResultModal
+        open={!!reissued}
+        title="새 키를 발급했어요"
+        desc={`${reissued?.owner ?? ''}님에게 안전한 방법으로 전달해 주세요. 이 창을 닫으면 다시 볼 수 없어요.`}
+        apiKey={reissued?.key.key ?? ''}
+        onClose={() => setReissued(null)}
+      />
     </>
   )
 }
 
-function IssueModal({ open, onIssue, onClose }: { open: boolean; onIssue: (email: string) => string; onClose: () => void }) {
+function KeyResultModal({ open, title, desc, apiKey, onClose }: { open: boolean; title: string; desc: string; apiKey: string; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} title={title} desc={desc}>
+      <KeyBox apiKey={apiKey} />
+      <div className="mt-6 flex justify-end">
+        <Button onClick={onClose}>확인</Button>
+      </div>
+    </Modal>
+  )
+}
+
+function KeyBox({ apiKey }: { apiKey: string }) {
+  const { copied, copy } = useCopy()
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-navy-deep p-3 pl-4">
+      <code className="flex-1 font-mono text-xs break-all text-sky-100">{apiKey}</code>
+      <button
+        type="button"
+        onClick={() => copy(apiKey)}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded text-sky-200 transition hover:bg-white/10"
+        aria-label="복사"
+      >
+        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      </button>
+    </div>
+  )
+}
+
+function IssueModal({ open, onIssue, onClose }: { open: boolean; onIssue: (email: string) => Promise<IssuedKey>; onClose: () => void }) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [issued, setIssued] = useState<string | null>(null)
-  const { copied, copy } = useCopy()
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!EMAIL_RE.test(email.trim())) return setError('올바른 이메일 주소를 입력해 주세요.')
-    setIssued(onIssue(email.trim()))
+    const value = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(value)) return setError('올바른 이메일 주소를 입력해 주세요.')
+    setLoading(true)
+    try {
+      setIssued((await onIssue(value)).key)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (issued)
     return (
-      <Modal open={open} onClose={onClose} title="키를 발급했어요" desc="이 키는 사용자에게 안전한 방법으로 전달해 주세요.">
-        <div className="flex items-center gap-2 rounded-md bg-navy-deep p-3 pl-4">
-          <code className="flex-1 font-mono text-xs break-all text-sky-100">{issued}</code>
-          <button
-            type="button"
-            onClick={() => copy(issued)}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded text-sky-200 transition hover:bg-white/10"
-            aria-label="복사"
-          >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </button>
-        </div>
+      <Modal open={open} onClose={onClose} title="키를 발급했어요" desc="사용자에게 안전한 방법으로 전달해 주세요. 이 창을 닫으면 다시 볼 수 없어요.">
+        <KeyBox apiKey={issued} />
         <div className="mt-6 flex justify-end">
           <Button onClick={onClose}>확인</Button>
         </div>
@@ -223,12 +300,14 @@ function IssueModal({ open, onIssue, onClose }: { open: boolean; onIssue: (email
           }}
           className={`${inputClass} h-11 w-full ${error ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100' : ''}`}
         />
-        <p className="mt-2 h-5 text-sm text-rose-500">{error}</p>
+        <p className="mt-2 min-h-5 text-sm text-rose-500">{error}</p>
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             취소
           </Button>
-          <Button type="submit">발급</Button>
+          <Button type="submit" disabled={loading}>
+            발급
+          </Button>
         </div>
       </form>
     </Modal>

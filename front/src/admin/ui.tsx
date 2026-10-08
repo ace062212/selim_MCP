@@ -99,28 +99,6 @@ export function IconButton({ label, tone = 'default', children, ...rest }: Butto
   )
 }
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:ring-4 focus-visible:ring-sky/30 focus-visible:outline-none ${
-        checked ? 'bg-navy' : 'bg-slate-300'
-      }`}
-    >
-      <motion.span
-        className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow"
-        initial={false}
-        animate={{ x: checked ? 20 : 0 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-      />
-    </button>
-  )
-}
-
 export function CountUp({ value, decimals = 0, suffix = '' }: { value: number; decimals?: number; suffix?: string }) {
   const mv = useMotionValue(0)
   const text = useTransform(mv, (v) => (decimals ? v.toFixed(decimals) : fmtNum(Math.round(v))) + suffix)
@@ -209,5 +187,14 @@ export function ConfirmModal({
         </Button>
       </div>
     </Modal>
+  )
+}
+
+export function LoadError({ message }: { message: string }) {
+  return (
+    <Panel className="p-10 text-center">
+      <p className="font-semibold text-navy-deep">데이터를 불러오지 못했어요</p>
+      <p className="mt-1.5 text-sm text-slate-500">{message}</p>
+    </Panel>
   )
 }

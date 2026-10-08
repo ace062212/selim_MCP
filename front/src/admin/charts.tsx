@@ -8,7 +8,8 @@ const W = 600
 const H = 200
 
 function niceMax(max: number) {
-  const step = 10 ** Math.floor(Math.log10(max || 1))
+  if (max < 10) return 10
+  const step = 10 ** Math.floor(Math.log10(max))
   return (Math.ceil((max / step) * 2) / 2) * step
 }
 

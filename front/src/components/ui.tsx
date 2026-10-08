@@ -80,3 +80,36 @@ export function Segmented<T extends string>({
     </div>
   )
 }
+
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-4 focus-visible:ring-sky/30 focus-visible:outline-none ${
+        checked ? 'bg-navy' : 'bg-slate-300'
+      }`}
+    >
+      <motion.span
+        className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow"
+        initial={false}
+        animate={{ x: checked ? 20 : 0 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+      />
+    </button>
+  )
+}
