@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Copy, Eye, EyeOff, RotateCcw, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, errorMessage, type IssuedKey, type KeyInfo } from '../lib/api'
 import { MCP_CLIENTS } from '../lib/clients'
 import { MCP_URL } from '../lib/config'
@@ -279,6 +279,17 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
   const [clientId, setClientId] = useState(readClient)
   const client = MCP_CLIENTS.find((c) => c.id === clientId) ?? MCP_CLIENTS[0]
   const snippet = client.build(MCP_URL, apiKey)
+  const tabsRef = useRef<HTMLDivElement>(null)
+
+  // 폰에서 탭 줄이 넘칠 때 고른 탭이 보이도록 가로 스크롤
+  useEffect(() => {
+    const strip = tabsRef.current
+    const tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!strip || !tab) return
+    if (tab.offsetLeft < strip.scrollLeft || tab.offsetLeft + tab.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollTo({ left: tab.offsetLeft - 16, behavior: 'smooth' })
+    }
+  }, [clientId])
 
   const choose = (id: string) => {
     setClientId(id)
@@ -292,24 +303,35 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
   return (
     <motion.div className="mt-6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
       <div className="mb-2 text-sm font-medium text-slate-700">연결 설정</div>
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-md bg-slate-100 p-1" role="tablist" aria-label="사용하는 프로그램">
-        {MCP_CLIENTS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            role="tab"
-            aria-selected={c.id === client.id}
-            onClick={() => choose(c.id)}
-            className={`rounded px-1.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
-              c.id === client.id ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      <p className="mb-1.5 text-xs text-slate-500">{client.where}</p>
-      <div className="relative rounded-md bg-navy-deep p-4 pr-12">
+
+      {/* 편집기처럼: 위쪽 탭 줄 + 붙여 넣을 곳 + 코드 */}
+      <div className="overflow-hidden rounded-md bg-navy-deep shadow-inner">
+        <div ref={tabsRef} role="tablist" aria-label="사용하는 프로그램" className="flex overflow-x-auto bg-[#081f3d] [scrollbar-width:none]">
+          {MCP_CLIENTS.map((c) => {
+            const active = c.id === client.id
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                title={c.label}
+                onClick={() => choose(c.id)}
+                className={`relative shrink-0 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                  active ? 'bg-navy-deep text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                }`}
+              >
+                {active && <span className="absolute inset-x-0 top-0 h-0.5 bg-sky" />}
+                {c.short}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-2.5 pr-2 pl-4">
+          <span className="min-w-0 text-[11px] leading-snug text-sky-200/60">▸ {client.where}</span>
+          <CopyButton id="snippet" text={snippet} {...clip} />
+        </div>
         <AnimatePresence mode="wait" initial={false}>
           <motion.pre
             key={client.id}
@@ -317,20 +339,18 @@ function Snippets({ apiKey, display, clip }: { apiKey: string; display: string; 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-sky-100"
+            className="px-4 pt-1 pb-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-sky-100"
           >
             {snippet.replaceAll(apiKey, display)}
           </motion.pre>
         </AnimatePresence>
-        <div className="absolute top-2 right-2">
-          <CopyButton id="snippet" text={snippet} {...clip} />
-        </div>
       </div>
-      {client.note && <p className="mt-2 text-xs text-slate-500">{client.note}</p>}
-      {apiKey === KEY_PLACEHOLDER && <p className="mt-2 text-xs text-slate-400">{KEY_PLACEHOLDER} 자리에 발급받은 키를 넣어 주세요.</p>}
-      {client.where.includes('추가') && (
-        <p className="mt-2 text-xs text-slate-400">파일에 이미 다른 서버 설정이 있으면 그 안에 selim 항목만 추가하세요.</p>
-      )}
+
+      <div className="mt-2 space-y-1 text-xs">
+        {client.note && <p className="text-slate-500">{client.note}</p>}
+        {apiKey === KEY_PLACEHOLDER && <p className="text-slate-400">{KEY_PLACEHOLDER} 자리에 발급받은 키를 넣어 주세요.</p>}
+        {client.where.includes('추가') && <p className="text-slate-400">파일에 이미 다른 서버 설정이 있으면 그 안에 selim 항목만 추가하세요.</p>}
+      </div>
     </motion.div>
   )
 }
